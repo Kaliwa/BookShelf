@@ -1,8 +1,14 @@
 import * as bcrypt from 'bcrypt';
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService, Role } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { LoginDto } from './dto/login.dto';
+import { Verify2faDto } from './dto/verify-2fa.dto';
 
 @Injectable()
 export class AuthService {
@@ -54,6 +60,54 @@ export class AuthService {
 
     return {
       message: 'Email verified successfully',
+    };
+  }
+
+  async login(dto: LoginDto) {
+    const { email, password } = dto;
+
+    const user = this.usersService.findByEmail(email);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isEmailVerified) {
+      throw new BadRequestException('Email not verified');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    user.twoFactorCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    console.log('2FA CODE:', user.twoFactorCode);
+
+    return {
+      message: 'Login successful. Check your email for the 2FA code.',
+    };
+  }
+  verify2fa(dto: Verify2faDto) {
+    const { email, code } = dto;
+
+    const user = this.usersService.findByEmail(email);
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid user');
+    }
+
+    if (user.twoFactorCode !== code) {
+      throw new UnauthorizedException('Invalid 2FA code');
+    }
+
+    // On invalide le code après utilisation
+    user.twoFactorCode = undefined;
+
+    return {
+      message: '2FA success (next step: JWT)',
     };
   }
 }
