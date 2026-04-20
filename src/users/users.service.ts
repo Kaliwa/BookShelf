@@ -1,45 +1,47 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma, Role, type User } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
 
-export enum Role {
-  USER = 'USER',
-  ADMIN = 'ADMIN',
-}
-
-export interface User {
-  id: number;
-  email: string;
-  password: string;
-  role: Role;
-  isEmailVerified: boolean;
-  emailCode?: string;
-  twoFactorCode?: string;
-}
+export { Role };
+export type { User };
 
 @Injectable()
 export class UsersService {
-  private readonly users: User[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(user: User): User {
-    this.users.push(user);
-    return user;
+  create(data: Prisma.UserCreateInput): Promise<User> {
+    return this.prisma.user.create({ data });
   }
 
-  findByEmail(email: string): User | undefined {
-    return this.users.find((user) => user.email === email);
+  findByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
-  verifyEmail(email: string) {
-    const user = this.findByEmail(email);
-
-    if (!user) return null;
-
-    user.isEmailVerified = true;
-    user.emailCode = undefined;
-
-    return user;
+  findById(id: number): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id } });
   }
 
-  findById(id: number) {
-    return this.users.find((user) => user.id === id);
+  verifyEmail(email: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { email },
+      data: {
+        isEmailVerified: true,
+        emailCode: null,
+      },
+    });
+  }
+
+  setTwoFactorCode(userId: number, code: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorCode: code },
+    });
+  }
+
+  clearTwoFactorCode(userId: number): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorCode: null },
+    });
   }
 }

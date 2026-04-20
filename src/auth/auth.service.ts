@@ -21,7 +21,7 @@ export class AuthService {
   async register(dto: RegisterDto) {
     const { email, password } = dto;
 
-    const existingUser = this.usersService.findByEmail(email);
+    const existingUser = await this.usersService.findByEmail(email);
 
     if (existingUser) {
       throw new BadRequestException('Email already used');
@@ -29,16 +29,15 @@ export class AuthService {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    const user = {
-      id: Date.now(),
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const user = await this.usersService.create({
       email,
       password: hashed,
-      role: Role.USER,
+      role: email === 'admin@test.com' ? Role.ADMIN : Role.USER,
       isEmailVerified: false,
-      emailCode: Math.floor(100000 + Math.random() * 900000).toString(),
-    };
-
-    this.usersService.create(user);
+      emailCode,
+    });
 
     console.log('EMAIL CODE:', user.emailCode);
 
@@ -47,10 +46,10 @@ export class AuthService {
     };
   }
 
-  verifyEmail(dto: VerifyEmailDto) {
+  async verifyEmail(dto: VerifyEmailDto) {
     const { email, code } = dto;
 
-    const user = this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmail(email);
 
     if (!user) {
       throw new BadRequestException('User not found');
@@ -60,7 +59,7 @@ export class AuthService {
       throw new BadRequestException('Invalid code');
     }
 
-    this.usersService.verifyEmail(email);
+    await this.usersService.verifyEmail(email);
 
     return {
       message: 'Email verified successfully',
@@ -70,7 +69,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const { email, password } = dto;
 
-    const user = this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -86,19 +85,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    user.twoFactorCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const twoFactorCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
 
-    console.log('2FA CODE:', user.twoFactorCode);
+    await this.usersService.setTwoFactorCode(user.id, twoFactorCode);
+
+    console.log('2FA CODE:', twoFactorCode);
 
     return {
       message: 'Login successful. Check your email for the 2FA code.',
     };
   }
 
-  verify2fa(dto: Verify2faDto) {
+  async verify2fa(dto: Verify2faDto) {
     const { email, code } = dto;
 
-    const user = this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmail(email);
 
     if (!user) {
       throw new UnauthorizedException('Invalid user');
@@ -108,7 +111,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid 2FA code');
     }
 
-    user.twoFactorCode = undefined;
+    await this.usersService.clearTwoFactorCode(user.id);
 
     const payload = {
       sub: user.id,
