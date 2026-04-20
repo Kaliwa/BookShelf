@@ -9,14 +9,16 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { Request } from 'express';
+import { User } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
 
-type AuthenticatedRequest = {
-  user: Parameters<BooksService['create']>[1];
-};
+interface AuthenticatedRequest extends Request {
+  user: User;
+}
 
 @Controller('books')
 @UseGuards(JwtAuthGuard)

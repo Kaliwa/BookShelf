@@ -1,4 +1,5 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { BookStatus } from '@prisma/client';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 
 export class UpdateBookDto {
   @IsOptional()
@@ -10,6 +11,6 @@ export class UpdateBookDto {
   author?: string;
 
   @IsOptional()
-  @IsIn(['TO_READ', 'READING', 'DONE'])
-  status?: 'TO_READ' | 'READING' | 'DONE';
+  @IsEnum(BookStatus)
+  status?: BookStatus;
 }

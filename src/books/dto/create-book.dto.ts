@@ -1,4 +1,5 @@
-import { IsIn, IsString } from 'class-validator';
+import { BookStatus } from '@prisma/client';
+import { IsEnum, IsString } from 'class-validator';
 
 export class CreateBookDto {
   @IsString()
@@ -7,6 +8,6 @@ export class CreateBookDto {
   @IsString()
   author!: string;
 
-  @IsIn(['TO_READ', 'READING', 'DONE'])
-  status!: 'TO_READ' | 'READING' | 'DONE';
+  @IsEnum(BookStatus)
+  status!: BookStatus;
 }

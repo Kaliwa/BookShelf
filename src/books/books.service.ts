@@ -3,50 +3,47 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Role, User } from '../users/users.service';
-
-export interface Book {
-  id: number;
-  title: string;
-  author: string;
-  status: 'TO_READ' | 'READING' | 'DONE';
-  userId: number;
-}
-
-type CreateBookInput = Pick<Book, 'title' | 'author' | 'status'>;
-type UpdateBookInput = Partial<CreateBookInput>;
+import { Book, Role, User } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
 
 @Injectable()
 export class BooksService {
-  private readonly books: Book[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  create(dto: CreateBookInput, user: User) {
-    const book: Book = {
-      id: Date.now(),
-      title: dto.title,
-      author: dto.author,
-      status: dto.status,
-      userId: user.id,
-    };
-
-    this.books.push(book);
-    return book;
+  create(dto: CreateBookDto, user: User): Promise<Book> {
+    return this.prisma.book.create({
+      data: {
+        title: dto.title,
+        author: dto.author,
+        status: dto.status,
+        userId: user.id,
+      },
+    });
   }
 
-  findMyBooks(user: User) {
-    return this.books.filter((book) => book.userId === user.id);
+  findMyBooks(user: User): Promise<Book[]> {
+    return this.prisma.book.findMany({
+      where: { userId: user.id },
+      orderBy: { id: 'desc' },
+    });
   }
 
-  findAll(user: User) {
+  findAll(user: User): Promise<Book[]> {
     if (user.role !== Role.ADMIN) {
       throw new ForbiddenException('Access denied');
     }
 
-    return this.books;
+    return this.prisma.book.findMany({
+      orderBy: { id: 'desc' },
+    });
   }
 
-  update(id: number, dto: UpdateBookInput, user: User) {
-    const book = this.books.find((b) => b.id === id);
+  async update(id: number, dto: UpdateBookDto, user: User): Promise<Book> {
+    const book = await this.prisma.book.findUnique({
+      where: { id },
+    });
 
     if (!book) {
       throw new NotFoundException('Book not found');
@@ -56,21 +53,27 @@ export class BooksService {
       throw new ForbiddenException('You cannot update this book');
     }
 
-    Object.assign(book, dto);
-    return book;
+    return this.prisma.book.update({
+      where: { id },
+      data: dto,
+    });
   }
 
-  remove(id: number, user: User) {
-    const index = this.books.findIndex((b) => b.id === id);
+  async remove(id: number, user: User): Promise<Book> {
+    const book = await this.prisma.book.findUnique({
+      where: { id },
+    });
 
-    if (index === -1) {
+    if (!book) {
       throw new NotFoundException('Book not found');
     }
 
-    if (this.books[index].userId !== user.id) {
+    if (book.userId !== user.id) {
       throw new ForbiddenException('You cannot delete this book');
     }
 
-    return this.books.splice(index, 1)[0];
+    return this.prisma.book.delete({
+      where: { id },
+    });
   }
 }
