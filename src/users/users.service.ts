@@ -27,4 +27,14 @@ export class UsersService {
   findByEmail(email: string): User | undefined {
     return this.users.find((user) => user.email === email);
   }
+  verifyEmail(email: string) {
+    const user = this.findByEmail(email);
+
+    if (!user) return null;
+
+    user.isEmailVerified = true;
+    user.emailCode = undefined;
+
+    return user;
+  }
 }
