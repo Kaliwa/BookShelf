@@ -9,10 +9,14 @@ import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
 import { Verify2faDto } from './dto/verify-2fa.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
-  constructor(private usersService: UsersService) {}
+  constructor(
+    private usersService: UsersService,
+    private jwtService: JwtService,
+  ) {}
 
   async register(dto: RegisterDto) {
     const { email, password } = dto;
@@ -90,6 +94,7 @@ export class AuthService {
       message: 'Login successful. Check your email for the 2FA code.',
     };
   }
+
   verify2fa(dto: Verify2faDto) {
     const { email, code } = dto;
 
@@ -103,11 +108,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid 2FA code');
     }
 
-    // On invalide le code après utilisation
     user.twoFactorCode = undefined;
 
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+
     return {
-      message: '2FA success (next step: JWT)',
+      access_token: this.jwtService.sign(payload),
     };
   }
 }

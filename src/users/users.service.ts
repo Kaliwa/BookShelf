@@ -27,6 +27,7 @@ export class UsersService {
   findByEmail(email: string): User | undefined {
     return this.users.find((user) => user.email === email);
   }
+
   verifyEmail(email: string) {
     const user = this.findByEmail(email);
 
@@ -36,5 +37,9 @@ export class UsersService {
     user.emailCode = undefined;
 
     return user;
+  }
+
+  findById(id: number) {
+    return this.users.find((user) => user.id === id);
   }
 }
