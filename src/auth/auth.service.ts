@@ -38,6 +38,11 @@ export class AuthService {
       role: Role.USER,
       isEmailVerified: false,
       emailCode,
+      bookshelf: {
+        create: {
+          name: `${email.split('@')[0]}'s bookshelf`,
+        },
+      },
     });
 
     console.log('EMAIL CODE:', user.emailCode);

@@ -32,18 +32,18 @@ export class BooksController {
   constructor(private readonly booksService: BooksService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new book' })
+  @ApiOperation({ summary: 'Add a book' })
   create(@Body() dto: CreateBookDto, @Req() req: AuthenticatedRequest) {
     return this.booksService.create(dto, req.user);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Find books owned by the current user' })
+  @ApiOperation({ summary: 'Get books from my bookshelf' })
   findMyBooks(@Req() req: AuthenticatedRequest) {
     return this.booksService.findMyBooks(req.user);
   }
 
-  @ApiOperation({ summary: 'Find all books (admin only)' })
+  @ApiOperation({ summary: 'Get all users bookshelves (admin only)' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('all')
@@ -51,7 +51,7 @@ export class BooksController {
     return this.booksService.findAll();
   }
 
-  @ApiOperation({ summary: 'Update a book (owner only)' })
+  @ApiOperation({ summary: 'Update a book from my bookshelf (owner only)' })
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -61,7 +61,7 @@ export class BooksController {
     return this.booksService.update(Number(id), dto, req.user);
   }
 
-  @ApiOperation({ summary: 'Delete a book (owner only)' })
+  @ApiOperation({ summary: 'Remove a book from my bookshelf (owner only)' })
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.booksService.remove(Number(id), req.user);
