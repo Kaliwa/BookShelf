@@ -15,6 +15,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { BooksService } from './books.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Role } from '@prisma/client';
 
 interface AuthenticatedRequest extends Request {
   user: User;
@@ -35,9 +38,11 @@ export class BooksController {
     return this.booksService.findMyBooks(req.user);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
   @Get('all')
-  findAll(@Req() req: AuthenticatedRequest) {
-    return this.booksService.findAll(req.user);
+  findAll() {
+    return this.booksService.findAll();
   }
 
   @Patch(':id')

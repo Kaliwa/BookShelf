@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Book, Role, User } from '@prisma/client';
+import { Book, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
@@ -30,11 +30,7 @@ export class BooksService {
     });
   }
 
-  findAll(user: User): Promise<Book[]> {
-    if (user.role !== Role.ADMIN) {
-      throw new ForbiddenException('Access denied');
-    }
-
+  findAll(): Promise<Book[]> {
     return this.prisma.book.findMany({
       orderBy: { id: 'desc' },
     });

@@ -4,12 +4,13 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UsersService, Role } from '../users/users.service';
+import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { LoginDto } from './dto/login.dto';
 import { Verify2faDto } from './dto/verify-2fa.dto';
 import { JwtService } from '@nestjs/jwt';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -34,7 +35,7 @@ export class AuthService {
     const user = await this.usersService.create({
       email,
       password: hashed,
-      role: email === 'admin@test.com' ? Role.ADMIN : Role.USER,
+      role: Role.USER,
       isEmailVerified: false,
       emailCode,
     });
