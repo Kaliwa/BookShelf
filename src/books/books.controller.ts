@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -39,8 +40,12 @@ export class BooksController {
 
   @Get()
   @ApiOperation({ summary: 'Get books from my bookshelf' })
-  findMyBooks(@Req() req: AuthenticatedRequest) {
-    return this.booksService.findMyBooks(req.user);
+  findMyBooks(
+    @Req() req: AuthenticatedRequest,
+    @Query('bookshelfId') bookshelfId?: string,
+  ) {
+    const parsedBookshelfId = bookshelfId ? Number(bookshelfId) : undefined;
+    return this.booksService.findMyBooks(req.user, parsedBookshelfId);
   }
 
   @ApiOperation({ summary: 'Get all users bookshelves (admin only)' })
@@ -51,7 +56,7 @@ export class BooksController {
     return this.booksService.findAll();
   }
 
-  @ApiOperation({ summary: 'Update a book from my bookshelf (owner only)' })
+  @ApiOperation({ summary: 'Update a book (owner or admin)' })
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -61,7 +66,7 @@ export class BooksController {
     return this.booksService.update(Number(id), dto, req.user);
   }
 
-  @ApiOperation({ summary: 'Remove a book from my bookshelf (owner only)' })
+  @ApiOperation({ summary: 'Remove a book (owner or admin)' })
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.booksService.remove(Number(id), req.user);

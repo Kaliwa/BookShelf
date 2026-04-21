@@ -28,13 +28,13 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  bookshelf       Bookshelf?
+  bookshelves     Bookshelf[]
 }
 
 model Bookshelf {
   id        Int      @id @default(autoincrement())
   name      String   @default("My Bookshelf")
-  userId    Int      @unique
+  userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

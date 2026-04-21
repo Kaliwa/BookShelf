@@ -2,6 +2,7 @@ import * as bcrypt from 'bcrypt';
 import {
   Injectable,
   BadRequestException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
@@ -11,12 +12,14 @@ import { LoginDto } from './dto/login.dto';
 import { Verify2faDto } from './dto/verify-2fa.dto';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -38,14 +41,21 @@ export class AuthService {
       role: Role.USER,
       isEmailVerified: false,
       emailCode,
-      bookshelf: {
+      bookshelves: {
         create: {
           name: `${email.split('@')[0]}'s bookshelf`,
         },
       },
     });
 
-    console.log('EMAIL CODE:', user.emailCode);
+    try {
+      await this.mailService.sendEmailVerificationEmail(email, user.emailCode!);
+    } catch {
+      await this.usersService.deleteById(user.id);
+      throw new ServiceUnavailableException(
+        'Unable to send verification email',
+      );
+    }
 
     return {
       message: 'User created. Check email for verification code.',
@@ -97,7 +107,12 @@ export class AuthService {
 
     await this.usersService.setTwoFactorCode(user.id, twoFactorCode);
 
-    console.log('2FA CODE:', twoFactorCode);
+    try {
+      await this.mailService.sendTwoFactorCodeEmail(email, twoFactorCode);
+    } catch {
+      await this.usersService.clearTwoFactorCode(user.id);
+      throw new ServiceUnavailableException('Unable to send 2FA email');
+    }
 
     return {
       message: 'Login successful. Check your email for the 2FA code.',

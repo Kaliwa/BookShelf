@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bookshelves | BookShelf</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="border-b bg-white">
+      <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        <nav class="flex gap-4 text-sm">
+          <a href="/books" class="text-slate-600">Livres</a>
+          <a href="/bookshelf" class="font-semibold">Bookshelves</a>
+        </nav>
+        <button id="logout" class="rounded-lg bg-slate-200 px-3 py-1 text-sm">Deconnexion</button>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-5xl px-4 py-6">
+      <h1 class="text-2xl font-bold">Bookshelves</h1>
+      <p id="page-note" class="mt-2 text-sm text-slate-600"></p>
+
+      <form id="create-form" class="mt-5 rounded-xl bg-white p-4 shadow-sm">
+        <label class="mb-2 block text-sm text-slate-600">Nouveau bookshelf</label>
+        <div class="flex gap-2">
+          <input id="new-name" type="text" required class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Ex: Romans" />
+          <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Creer</button>
+        </div>
+      </form>
+
+      <p id="msg" class="mt-3 text-sm"></p>
+
+      <div class="mt-5 rounded-xl bg-white p-4 shadow-sm">
+        <h2 class="text-lg font-semibold">Mes bookshelves</h2>
+        <div id="shelves" class="mt-3 space-y-3"></div>
+      </div>
+    </main>
+
+    <script>
+      const token = localStorage.getItem('token');
+      if (!token) window.location.href = '/login';
+
+      const msg = document.getElementById('msg');
+      const shelvesEl = document.getElementById('shelves');
+      const createForm = document.getElementById('create-form');
+      const pageNote = document.getElementById('page-note');
+      const session = parseJwt(token);
+      const isAdmin = session?.role === 'ADMIN';
+
+      document.getElementById('logout').onclick = () => {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      };
+
+      function parseJwt(value) {
+        try {
+          const [, payload] = value.split('.');
+          return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+        } catch {
+          return null;
+        }
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch('/api' + path, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + localStorage.getItem('token'),
+            ...(options.headers || {}),
+          },
+        });
+
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return null;
+        }
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Erreur API');
+        return data;
+      }
+
+      async function loadShelves() {
+        const shelves = await api(isAdmin ? '/bookshelf/all' : '/bookshelf');
+        if (!shelves) return;
+
+        shelvesEl.innerHTML = '';
+
+        if (shelves.length === 0) {
+          shelvesEl.innerHTML = '<p class="text-slate-500">Aucun bookshelf.</p>';
+          return;
+        }
+
+        for (const shelf of shelves) {
+          const row = document.createElement('div');
+          row.className = 'rounded border border-slate-200 p-3';
+
+          const books = (shelf.books || []).map((b) => `${b.title} - ${b.author} (${b.status})`).join('<br/>');
+          const owner = shelf.user?.email ? `<p class="mb-2 text-xs text-slate-500">Utilisateur: ${shelf.user.email}</p>` : '';
+          row.innerHTML = `
+            ${owner}
+            <div class="flex items-center justify-between gap-2">
+              <input data-name="${shelf.id}" class="w-full rounded border border-slate-300 px-2 py-1" value="${shelf.name}" />
+              <div class="flex gap-2">
+                <button data-save="${shelf.id}" class="rounded bg-slate-200 px-3 py-1 text-sm">Renommer</button>
+                <button data-del="${shelf.id}" class="rounded bg-rose-100 px-3 py-1 text-sm text-rose-700">Supprimer</button>
+              </div>
+            </div>
+            <div class="mt-2 text-sm text-slate-600">
+              ${shelf.books.length === 0 ? 'Aucun livre.' : books}
+            </div>
+          `;
+
+          shelvesEl.appendChild(row);
+        }
+      }
+
+      document.getElementById('create-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        try {
+          await api('/bookshelf', {
+            method: 'POST',
+            body: JSON.stringify({ name: document.getElementById('new-name').value }),
+          });
+          e.target.reset();
+          await loadShelves();
+        } catch (err) {
+          msg.textContent = err.message;
+        }
+      });
+
+      shelvesEl.addEventListener('click', async (e) => {
+        const id = e.target.getAttribute('data-save');
+        const delId = e.target.getAttribute('data-del');
+
+        try {
+          if (id) {
+            msg.textContent = '';
+            const input = shelvesEl.querySelector(`input[data-name="${id}"]`);
+            await api('/bookshelf/' + id, {
+              method: 'PATCH',
+              body: JSON.stringify({ name: input.value }),
+            });
+            await loadShelves();
+          }
+
+          if (delId) {
+            msg.textContent = '';
+            await api('/bookshelf/' + delId, {
+              method: 'DELETE',
+            });
+            await loadShelves();
+          }
+        } catch (err) {
+          msg.textContent = err.message;
+        }
+      });
+
+      if (isAdmin) {
+        pageNote.textContent = 'Vue admin: tous les bookshelves et leurs livres. Modification et suppression autorisees.';
+      }
+
+      loadShelves();
+    </script>
+  </body>
+</html>

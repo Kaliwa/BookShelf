@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BookShelf</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <main class="mx-auto flex min-h-screen max-w-xl items-center justify-center px-4">
+      <div class="w-full rounded-2xl bg-white p-8 shadow-sm">
+        <h1 class="text-3xl font-bold">BookShelf</h1>
+        <p class="mt-2 text-sm text-slate-600">Simple et rapide.</p>
+        <div class="mt-6 flex gap-3">
+          <a href="/login" class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Connexion</a>
+          <a href="/register" class="rounded-lg bg-slate-200 px-4 py-2 text-sm text-slate-900">Inscription</a>
+        </div>
+      </div>
+    </main>
+    <script>
+      const token = localStorage.getItem('token');
+      if (token) {
+        window.location.href = '/books';
+      }
+    </script>
+  </body>
+</html>

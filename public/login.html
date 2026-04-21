@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connexion | BookShelf</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <main class="mx-auto flex min-h-screen max-w-xl items-center justify-center px-4">
+      <section class="w-full rounded-2xl bg-white p-8 shadow-sm">
+        <h1 class="text-2xl font-bold">Connexion</h1>
+
+        <form id="login-form" class="mt-6 space-y-3">
+          <input id="email" type="email" required placeholder="Email" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <input id="password" type="password" required placeholder="Mot de passe" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <button class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Se connecter</button>
+        </form>
+
+        <form id="twofa-form" class="mt-6 hidden space-y-3">
+          <p class="text-sm text-slate-600">Code 2FA (vu dans les logs backend pour l'instant)</p>
+          <input id="twofa-code" type="text" maxlength="6" required placeholder="123456" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <button class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Valider le code</button>
+        </form>
+
+        <p id="msg" class="mt-4 text-sm text-slate-700"></p>
+        <p class="mt-5 text-sm text-slate-600">Pas de compte ? <a href="/register" class="underline">Inscription</a></p>
+      </section>
+    </main>
+
+    <script>
+      const loginForm = document.getElementById('login-form');
+      const twofaForm = document.getElementById('twofa-form');
+      const msg = document.getElementById('msg');
+      let loginEmail = '';
+
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        loginEmail = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: loginEmail, password }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          msg.textContent = data.message || 'Erreur de connexion';
+          return;
+        }
+
+        msg.textContent = 'Code 2FA envoyé.';
+        loginForm.classList.add('hidden');
+        twofaForm.classList.remove('hidden');
+      });
+
+      twofaForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        const code = document.getElementById('twofa-code').value;
+
+        const response = await fetch('/api/auth/verify-2fa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: loginEmail, code }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          msg.textContent = data.message || 'Code invalide';
+          return;
+        }
+
+        localStorage.setItem('token', data.access_token);
+        window.location.href = '/books';
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Livres | BookShelf</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <header class="border-b bg-white">
+      <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        <nav class="flex gap-4 text-sm">
+          <a href="/books" class="font-semibold">Livres</a>
+          <a href="/bookshelf" class="text-slate-600">Bookshelves</a>
+        </nav>
+        <button id="logout" class="rounded-lg bg-slate-200 px-3 py-1 text-sm">Deconnexion</button>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-5xl px-4 py-6">
+      <h1 class="text-2xl font-bold">Livres</h1>
+      <p id="page-note" class="mt-2 text-sm text-slate-600"></p>
+
+      <form id="book-form" class="mt-5 grid gap-3 rounded-xl bg-white p-4 shadow-sm md:grid-cols-5">
+        <input id="title" type="text" required placeholder="Titre" class="rounded-lg border border-slate-300 px-3 py-2 md:col-span-2" />
+        <input id="author" type="text" required placeholder="Auteur" class="rounded-lg border border-slate-300 px-3 py-2" />
+        <select id="status" class="rounded-lg border border-slate-300 px-3 py-2">
+          <option value="TO_READ">A lire</option>
+          <option value="READING">En cours</option>
+          <option value="DONE">Termine</option>
+        </select>
+        <select id="bookshelfId" class="rounded-lg border border-slate-300 px-3 py-2"></select>
+        <button id="submit-btn" class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white md:col-span-5">Ajouter</button>
+      </form>
+
+      <div class="mt-4 flex gap-2">
+        <button id="cancel-edit" class="hidden rounded bg-slate-200 px-3 py-1 text-sm">Annuler modification</button>
+        <select id="filterShelf" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></select>
+      </div>
+
+      <p id="msg" class="mt-3 text-sm"></p>
+      <div id="list" class="mt-4 space-y-2"></div>
+    </main>
+
+    <script>
+      const token = localStorage.getItem('token');
+      if (!token) window.location.href = '/login';
+
+      const list = document.getElementById('list');
+      const msg = document.getElementById('msg');
+      const bookForm = document.getElementById('book-form');
+      const submitBtn = document.getElementById('submit-btn');
+      const cancelEditBtn = document.getElementById('cancel-edit');
+      const pageNote = document.getElementById('page-note');
+      const filterShelf = document.getElementById('filterShelf');
+      let editingBookId = null;
+      let shelves = [];
+      const session = parseJwt(token);
+      const isAdmin = session?.role === 'ADMIN';
+
+      document.getElementById('logout').onclick = () => {
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      };
+
+      function parseJwt(value) {
+        try {
+          const [, payload] = value.split('.');
+          return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+        } catch {
+          return null;
+        }
+      }
+
+      async function api(path, options = {}) {
+        const response = await fetch('/api' + path, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + localStorage.getItem('token'),
+            ...(options.headers || {}),
+          },
+        });
+
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          return null;
+        }
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Erreur API');
+        return data;
+      }
+
+      async function loadShelves() {
+        shelves = await api(isAdmin ? '/bookshelf/all' : '/bookshelf');
+        if (!shelves) return;
+
+        const createSelect = document.getElementById('bookshelfId');
+
+        createSelect.innerHTML = '';
+        filterShelf.innerHTML = '<option value="">Tous les shelves</option>';
+
+        if (shelves.length === 0) {
+          msg.textContent = 'Creez un bookshelf avant d\'ajouter des livres.';
+          return;
+        }
+
+        for (const shelf of shelves) {
+          const owner = shelf.user?.email ? ` - ${shelf.user.email}` : '';
+          createSelect.innerHTML += `<option value="${shelf.id}">${shelf.name}${owner}</option>`;
+          filterShelf.innerHTML += `<option value="${shelf.id}">${shelf.name}${owner}</option>`;
+        }
+      }
+
+      async function loadBooks() {
+        const shelfFilter = filterShelf.value;
+        const query = shelfFilter ? '?bookshelfId=' + shelfFilter : '';
+        const books = await api((isAdmin ? '/books/all' : '/books') + query);
+        if (!books) return;
+
+        list.innerHTML = '';
+        for (const b of books) {
+          const shelf = shelves.find((s) => s.id === b.bookshelfId);
+          const ownerEmail = b.bookshelf?.user?.email || shelf?.user?.email;
+          const row = document.createElement('div');
+          row.className = 'rounded-xl bg-white p-4 shadow-sm flex items-center justify-between gap-3';
+          row.innerHTML = `
+            <div>
+              <p class="font-semibold">${b.title}</p>
+              <p class="text-sm text-slate-600">${b.author} - ${b.status}</p>
+              <p class="text-xs text-slate-500">${shelf ? shelf.name : 'Bookshelf #' + b.bookshelfId}</p>
+              ${ownerEmail ? `<p class="text-xs text-slate-500">Utilisateur: ${ownerEmail}</p>` : ''}
+            </div>
+            <div class="flex gap-2">
+              <button data-edit="${b.id}" class="rounded bg-slate-200 px-3 py-1 text-sm">Modifier</button>
+              <button data-del="${b.id}" class="rounded bg-rose-100 px-3 py-1 text-sm text-rose-700">Supprimer</button>
+            </div>
+          `;
+          list.appendChild(row);
+        }
+      }
+
+      function resetForm() {
+        editingBookId = null;
+        submitBtn.textContent = 'Ajouter';
+        cancelEditBtn.classList.add('hidden');
+        bookForm.reset();
+        if (shelves.length > 0) {
+          document.getElementById('bookshelfId').value = String(shelves[0].id);
+        }
+      }
+
+      bookForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+
+        const payload = {
+          title: document.getElementById('title').value,
+          author: document.getElementById('author').value,
+          status: document.getElementById('status').value,
+          bookshelfId: Number(document.getElementById('bookshelfId').value),
+        };
+
+        try {
+          if (editingBookId) {
+            await api('/books/' + editingBookId, {
+              method: 'PATCH',
+              body: JSON.stringify(payload),
+            });
+          } else {
+            await api('/books', {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
+          }
+          resetForm();
+          await loadBooks();
+        } catch (err) {
+          msg.textContent = err.message;
+        }
+      });
+
+      cancelEditBtn.addEventListener('click', () => {
+        resetForm();
+      });
+
+      list.addEventListener('click', async (e) => {
+        const del = e.target.getAttribute('data-del');
+        const edit = e.target.getAttribute('data-edit');
+
+        try {
+          if (del) {
+            await api('/books/' + del, { method: 'DELETE' });
+            await loadBooks();
+          }
+
+          if (edit) {
+            const books = await api(isAdmin ? '/books/all' : '/books');
+            const found = books.find((b) => String(b.id) === String(edit));
+            if (!found) return;
+
+            editingBookId = found.id;
+            document.getElementById('title').value = found.title;
+            document.getElementById('author').value = found.author;
+            document.getElementById('status').value = found.status;
+            document.getElementById('bookshelfId').value = String(found.bookshelfId);
+            submitBtn.textContent = 'Enregistrer';
+            cancelEditBtn.classList.remove('hidden');
+          }
+        } catch (err) {
+          msg.textContent = err.message;
+        }
+      });
+
+      filterShelf.addEventListener('change', loadBooks);
+
+      (async () => {
+        if (isAdmin) {
+          pageNote.textContent = 'Vue admin: tous les livres et tous les bookshelves. Modification et suppression autorisees.';
+        }
+        await loadShelves();
+        await loadBooks();
+      })();
+    </script>
+  </body>
+</html>

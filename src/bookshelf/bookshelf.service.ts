@@ -1,103 +1,77 @@
-import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Bookshelf, Role, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateBookshelfDto } from './dto/create-bookshelf.dto';
 import { UpdateBookshelfDto } from './dto/update-bookshelf.dto';
-
-type BookshelfRecord = {
-  id: number;
-  userId: number;
-  name: string;
-};
-
-interface BookshelfDelegate {
-  upsert(args: {
-    where: { userId: number };
-    update: Record<string, never>;
-    create: { userId: number; name: string };
-  }): Promise<BookshelfRecord>;
-  findUnique(args: {
-    where: { id: number };
-    include: {
-      user: {
-        select: {
-          id: true;
-          email: true;
-          role: true;
-        };
-      };
-      books: {
-        orderBy: { id: 'desc' };
-      };
-    };
-  }): Promise<BookshelfRecord | null>;
-  update(args: {
-    where: { id: number };
-    data: { name: string };
-    include: {
-      books: true;
-    };
-  }): Promise<BookshelfRecord>;
-  findMany(args: {
-    orderBy: { id: 'desc' };
-    include: {
-      user: {
-        select: {
-          id: true;
-          email: true;
-          role: true;
-        };
-      };
-      books: {
-        orderBy: { id: 'desc' };
-      };
-    };
-  }): Promise<BookshelfRecord[]>;
-}
 
 @Injectable()
 export class BookshelfService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private get bookshelf() {
-    return this.prisma as PrismaService & { bookshelf: BookshelfDelegate };
-  }
-
-  private getOrCreateBookshelf(user: User): Promise<BookshelfRecord> {
-    return this.bookshelf.bookshelf.upsert({
-      where: { userId: user.id },
-      update: {},
-      create: {
+  async createMyBookshelf(
+    user: User,
+    dto: CreateBookshelfDto,
+  ): Promise<Bookshelf> {
+    return this.prisma.bookshelf.create({
+      data: {
         userId: user.id,
-        name: `${user.email.split('@')[0]}'s bookshelf`,
+        name: dto.name,
       },
     });
   }
 
-  async getMyBookshelf(user: User) {
-    const bookshelf = await this.getOrCreateBookshelf(user);
-
-    return this.bookshelf.bookshelf.findUnique({
-      where: { id: bookshelf.id },
+  getMyBookshelves(user: User) {
+    return this.prisma.bookshelf.findMany({
+      where: {
+        userId: user.id,
+      },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
+        books: {
+          orderBy: { id: 'desc' },
         },
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
+
+  async getMyBookshelfById(id: number, user: User) {
+    const bookshelf = await this.prisma.bookshelf.findUnique({
+      where: { id },
+      include: {
         books: {
           orderBy: { id: 'desc' },
         },
       },
     });
+
+    if (!bookshelf) {
+      throw new NotFoundException('Bookshelf not found');
+    }
+
+    if (bookshelf.userId !== user.id && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('You cannot access this bookshelf');
+    }
+
+    return bookshelf;
   }
 
-  async updateMyBookshelf(user: User, dto: UpdateBookshelfDto) {
-    const bookshelf = await this.getOrCreateBookshelf(user);
+  async updateMyBookshelf(id: number, user: User, dto: UpdateBookshelfDto) {
+    const bookshelf = await this.prisma.bookshelf.findUnique({ where: { id } });
 
-    return this.bookshelf.bookshelf.update({
-      where: { id: bookshelf.id },
+    if (!bookshelf) {
+      throw new NotFoundException('Bookshelf not found');
+    }
+
+    if (bookshelf.userId !== user.id && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('You cannot update this bookshelf');
+    }
+
+    return this.prisma.bookshelf.update({
+      where: { id },
       data: { name: dto.name },
       include: {
         books: true,
@@ -105,8 +79,27 @@ export class BookshelfService {
     });
   }
 
+  async removeBookshelf(id: number, user: User) {
+    const bookshelf = await this.prisma.bookshelf.findUnique({ where: { id } });
+
+    if (!bookshelf) {
+      throw new NotFoundException('Bookshelf not found');
+    }
+
+    if (bookshelf.userId !== user.id && user.role !== Role.ADMIN) {
+      throw new ForbiddenException('You cannot delete this bookshelf');
+    }
+
+    return this.prisma.bookshelf.delete({
+      where: { id },
+      include: {
+        books: true,
+      },
+    });
+  }
+
   findAll() {
-    return this.bookshelf.bookshelf.findMany({
+    return this.prisma.bookshelf.findMany({
       orderBy: { id: 'desc' },
       include: {
         user: {

@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module';
 import { BooksModule } from './books/books.module';
 import { BookshelfModule } from './bookshelf/bookshelf.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PrismaModule } from './prisma/prisma.module';
     BooksModule,
     BookshelfModule,
     PrismaModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

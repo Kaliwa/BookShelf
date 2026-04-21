@@ -1,9 +1,10 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Book, User, type Bookshelf } from '@prisma/client';
+import { Book, Role, User, type Bookshelf } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookDto } from './dto/create-book.dto';
 import { UpdateBookDto } from './dto/update-book.dto';
@@ -12,11 +13,18 @@ import { UpdateBookDto } from './dto/update-book.dto';
 export class BooksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private getOrCreateBookshelf(user: User): Promise<Bookshelf> {
-    return this.prisma.bookshelf.upsert({
+  private async getDefaultBookshelf(user: User): Promise<Bookshelf> {
+    const existing = await this.prisma.bookshelf.findFirst({
       where: { userId: user.id },
-      update: {},
-      create: {
+      orderBy: { id: 'asc' },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    return this.prisma.bookshelf.create({
+      data: {
         userId: user.id,
         name: `${user.email.split('@')[0]}'s bookshelf`,
       },
@@ -24,7 +32,19 @@ export class BooksService {
   }
 
   async create(dto: CreateBookDto, user: User): Promise<Book> {
-    const bookshelf = await this.getOrCreateBookshelf(user);
+    let bookshelf = await this.getDefaultBookshelf(user);
+
+    if (dto.bookshelfId) {
+      const selected = await this.prisma.bookshelf.findUnique({
+        where: { id: dto.bookshelfId },
+      });
+
+      if (!selected || selected.userId !== user.id) {
+        throw new BadRequestException('Invalid bookshelf');
+      }
+
+      bookshelf = selected;
+    }
 
     return this.prisma.book.create({
       data: {
@@ -36,11 +56,12 @@ export class BooksService {
     });
   }
 
-  findMyBooks(user: User): Promise<Book[]> {
+  findMyBooks(user: User, bookshelfId?: number): Promise<Book[]> {
     return this.prisma.book.findMany({
       where: {
         bookshelf: {
           userId: user.id,
+          ...(bookshelfId ? { id: bookshelfId } : {}),
         },
       },
       orderBy: { id: 'desc' },
@@ -50,6 +71,19 @@ export class BooksService {
   findAll(): Promise<Book[]> {
     return this.prisma.book.findMany({
       orderBy: { id: 'desc' },
+      include: {
+        bookshelf: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -65,13 +99,34 @@ export class BooksService {
       throw new NotFoundException('Book not found');
     }
 
-    if (book.bookshelf.userId !== user.id) {
+    if (book.bookshelf.userId !== user.id && user.role !== Role.ADMIN) {
       throw new ForbiddenException('You cannot update this book');
+    }
+
+    let bookshelfId = dto.bookshelfId;
+    if (bookshelfId !== undefined) {
+      const selected = await this.prisma.bookshelf.findUnique({
+        where: { id: bookshelfId },
+      });
+
+      if (
+        !selected ||
+        (selected.userId !== user.id && user.role !== Role.ADMIN)
+      ) {
+        throw new BadRequestException('Invalid bookshelf');
+      }
+
+      bookshelfId = selected.id;
     }
 
     return this.prisma.book.update({
       where: { id },
-      data: dto,
+      data: {
+        title: dto.title,
+        author: dto.author,
+        status: dto.status,
+        ...(bookshelfId !== undefined ? { bookshelfId } : {}),
+      },
     });
   }
 
@@ -87,7 +142,7 @@ export class BooksService {
       throw new NotFoundException('Book not found');
     }
 
-    if (book.bookshelf.userId !== user.id) {
+    if (book.bookshelf.userId !== user.id && user.role !== Role.ADMIN) {
       throw new ForbiddenException('You cannot delete this book');
     }
 

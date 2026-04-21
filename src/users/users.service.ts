@@ -44,4 +44,10 @@ export class UsersService {
       data: { twoFactorCode: null },
     });
   }
+
+  deleteById(userId: number): Promise<User> {
+    return this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
 }

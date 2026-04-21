@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inscription | BookShelf</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-50 text-slate-900">
+    <main class="mx-auto flex min-h-screen max-w-xl items-center justify-center px-4">
+      <section class="w-full rounded-2xl bg-white p-8 shadow-sm">
+        <h1 class="text-2xl font-bold">Inscription</h1>
+
+        <form id="register-form" class="mt-6 space-y-3">
+          <input id="email" type="email" required placeholder="Email" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <input id="password" type="password" required placeholder="Mot de passe" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <button class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Creer le compte</button>
+        </form>
+
+        <form id="verify-form" class="mt-6 hidden space-y-3">
+          <p class="text-sm text-slate-600">Code email (vu dans les logs backend pour l'instant)</p>
+          <input id="code" type="text" maxlength="6" required placeholder="123456" class="w-full rounded-lg border border-slate-300 px-3 py-2" />
+          <button class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Verifier l'email</button>
+        </form>
+
+        <p id="msg" class="mt-4 text-sm text-slate-700"></p>
+        <p class="mt-5 text-sm text-slate-600">Deja un compte ? <a href="/login" class="underline">Connexion</a></p>
+      </section>
+    </main>
+
+    <script>
+      const registerForm = document.getElementById('register-form');
+      const verifyForm = document.getElementById('verify-form');
+      const msg = document.getElementById('msg');
+      let registeredEmail = '';
+
+      registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        registeredEmail = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: registeredEmail, password }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          msg.textContent = data.message || 'Erreur inscription';
+          return;
+        }
+
+        msg.textContent = 'Compte cree. Entrez le code email.';
+        registerForm.classList.add('hidden');
+        verifyForm.classList.remove('hidden');
+      });
+
+      verifyForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        const code = document.getElementById('code').value;
+
+        const response = await fetch('/api/auth/verify-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: registeredEmail, code }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          msg.textContent = data.message || 'Code invalide';
+          return;
+        }
+
+        window.location.href = '/login';
+      });
+    </script>
+  </body>
+</html>

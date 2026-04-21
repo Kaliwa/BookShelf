@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BookStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class UpdateBookDto {
   @ApiProperty({ example: 'The Great Gatsby' })
@@ -17,4 +17,10 @@ export class UpdateBookDto {
   @IsOptional()
   @IsEnum(BookStatus)
   status?: BookStatus;
+
+  @ApiProperty({ example: 1, required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  bookshelfId?: number;
 }
