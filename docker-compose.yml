@@ -1,4 +1,22 @@
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+    container_name: bookshelf-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailhog:
+        condition: service_started
+    env_file:
+      - .env
+    ports:
+      - '3000:3000'
+
   postgres:
     image: postgres:16-alpine
     container_name: bookshelf-postgres
