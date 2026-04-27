@@ -24,8 +24,6 @@ describe('BooksService', () => {
     password: 'secret',
     role: Role.USER,
     isEmailVerified: true,
-    twoFactorEnabled: false,
-    twoFactorSecret: null,
   };
   const admin = {
     ...user,
