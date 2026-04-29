@@ -10,9 +10,36 @@ Application NestJS unique: API + frontend statique (login, register, books, book
 ## Demarrage Rapide (Nouvel Ordinateur)
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
-docker compose exec -T app pnpm prisma db seed
+make first_launch
+```
+
+`make first_launch` fait tout en une seule commande:
+
+- cree `.env` depuis `.env.example` si besoin
+- build et demarre les conteneurs Docker
+- execute le seed Prisma dans le conteneur `app`
+
+## Premiere execution
+
+1. Cloner le projet puis se placer dans le dossier.
+2. Lancer la commande d'onboarding:
+
+```bash
+make first_launch
+```
+
+3. Ouvrir l'application:
+   - App: http://localhost:3000
+   - MailHog: http://localhost:8025
+4. Se connecter avec un compte seed (ci-dessous), puis recuperer le code 2FA dans MailHog.
+
+## Commandes Make
+
+```bash
+make first_launch  # setup complet pour un nouveau developpeur
+make up            # build + demarrage des conteneurs
+make seed          # lance le seed Prisma dans le conteneur app
+make down          # arrete la stack Docker
 ```
 
 Puis ouvrir:
@@ -29,7 +56,7 @@ Comptes seed:
 
 Note: le login utilise un code 2FA recu par email. En local, recupere ce code dans MailHog.
 
-## Installation
+## Installation sans le first_launch
 
 ```bash
 pnpm install
@@ -68,7 +95,7 @@ MAIL_HOST="mailhog"
 Demarrer PostgreSQL et MailHog (si Docker):
 
 ```bash
-docker compose up -d
+make up
 ```
 
 Appliquer les migrations et generer Prisma Client:
@@ -87,7 +114,7 @@ pnpm prisma db seed
 Avec Docker:
 
 ```bash
-pnpm seed:docker
+make seed
 ```
 
 ## Lancer l'application
