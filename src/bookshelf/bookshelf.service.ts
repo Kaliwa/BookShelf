@@ -12,6 +12,20 @@ import { UpdateBookshelfDto } from './dto/update-bookshelf.dto';
 export class BookshelfService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private buildSearchFilter(search?: string) {
+    const term = search?.trim();
+    if (!term) {
+      return {};
+    }
+
+    return {
+      name: {
+        contains: term,
+        mode: 'insensitive' as const,
+      },
+    };
+  }
+
   async createMyBookshelf(
     user: User,
     dto: CreateBookshelfDto,
@@ -24,10 +38,11 @@ export class BookshelfService {
     });
   }
 
-  getMyBookshelves(user: User) {
+  getMyBookshelves(user: User, search?: string) {
     return this.prisma.bookshelf.findMany({
       where: {
         userId: user.id,
+        ...this.buildSearchFilter(search),
       },
       include: {
         books: {
@@ -98,8 +113,9 @@ export class BookshelfService {
     });
   }
 
-  findAll() {
+  findAll(search?: string) {
     return this.prisma.bookshelf.findMany({
+      where: this.buildSearchFilter(search),
       orderBy: { id: 'desc' },
       include: {
         user: {

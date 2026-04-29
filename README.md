@@ -181,12 +181,17 @@ MailHog:
 - POST /api/auth/verify-2fa
 - GET /api/books
 - GET /api/books?bookshelfId=ID
+- GET /api/books?search=terme
+- GET /api/books?bookshelfId=ID&search=terme
 - GET /api/books/all
+- GET /api/books/all?search=terme
 - POST /api/books
 - PATCH /api/books/:id
 - DELETE /api/books/:id
 - GET /api/bookshelf
+- GET /api/bookshelf?search=terme
 - GET /api/bookshelf/all
+- GET /api/bookshelf/all?search=terme
 - GET /api/bookshelf/:id
 - POST /api/bookshelf
 - PATCH /api/bookshelf/:id

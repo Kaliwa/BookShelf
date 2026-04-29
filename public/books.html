@@ -38,6 +38,20 @@
         <select id="filterShelf" class="rounded-lg border border-slate-300 px-3 py-2 text-sm"></select>
       </div>
 
+      <form id="search-form" class="mt-4 rounded-xl bg-white p-4 shadow-sm">
+        <label for="search-book" class="mb-2 block text-sm text-slate-600">Rechercher un livre (titre ou auteur)</label>
+        <div class="flex gap-2">
+          <input
+            id="search-book"
+            type="text"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2"
+            placeholder="Ex: Dune, Tolkien, Asimov..."
+          />
+          <button class="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">Rechercher</button>
+          <button id="clear-search" type="button" class="rounded-lg bg-slate-200 px-4 py-2 text-sm">Effacer</button>
+        </div>
+      </form>
+
       <p id="msg" class="mt-3 text-sm"></p>
       <div id="list" class="mt-4 space-y-2"></div>
     </main>
@@ -53,8 +67,12 @@
       const cancelEditBtn = document.getElementById('cancel-edit');
       const pageNote = document.getElementById('page-note');
       const filterShelf = document.getElementById('filterShelf');
+      const searchForm = document.getElementById('search-form');
+      const searchInput = document.getElementById('search-book');
+      const clearSearchBtn = document.getElementById('clear-search');
       let editingBookId = null;
       let shelves = [];
+      let currentSearch = '';
       const session = parseJwt(token);
       const isAdmin = session?.role === 'ADMIN';
 
@@ -115,8 +133,15 @@
       }
 
       async function loadBooks() {
+        const params = new URLSearchParams();
         const shelfFilter = filterShelf.value;
-        const query = shelfFilter ? '?bookshelfId=' + shelfFilter : '';
+        if (shelfFilter) {
+          params.set('bookshelfId', shelfFilter);
+        }
+        if (currentSearch) {
+          params.set('search', currentSearch);
+        }
+        const query = params.toString() ? `?${params.toString()}` : '';
         const books = await api((isAdmin ? '/books/all' : '/books') + query);
         if (!books) return;
 
@@ -184,6 +209,20 @@
 
       cancelEditBtn.addEventListener('click', () => {
         resetForm();
+      });
+
+      searchForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.textContent = '';
+        currentSearch = searchInput.value.trim();
+        await loadBooks();
+      });
+
+      clearSearchBtn.addEventListener('click', async () => {
+        msg.textContent = '';
+        searchInput.value = '';
+        currentSearch = '';
+        await loadBooks();
       });
 
       list.addEventListener('click', async (e) => {

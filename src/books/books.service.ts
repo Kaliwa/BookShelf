@@ -13,6 +13,30 @@ import { UpdateBookDto } from './dto/update-book.dto';
 export class BooksService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private buildSearchFilter(search?: string) {
+    const term = search?.trim();
+    if (!term) {
+      return {};
+    }
+
+    return {
+      OR: [
+        {
+          title: {
+            contains: term,
+            mode: 'insensitive' as const,
+          },
+        },
+        {
+          author: {
+            contains: term,
+            mode: 'insensitive' as const,
+          },
+        },
+      ],
+    };
+  }
+
   private async getDefaultBookshelf(user: User): Promise<Bookshelf> {
     const existing = await this.prisma.bookshelf.findFirst({
       where: { userId: user.id },
@@ -56,20 +80,22 @@ export class BooksService {
     });
   }
 
-  findMyBooks(user: User, bookshelfId?: number): Promise<Book[]> {
+  findMyBooks(user: User, bookshelfId?: number, search?: string): Promise<Book[]> {
     return this.prisma.book.findMany({
       where: {
         bookshelf: {
           userId: user.id,
           ...(bookshelfId ? { id: bookshelfId } : {}),
         },
+        ...this.buildSearchFilter(search),
       },
       orderBy: { id: 'desc' },
     });
   }
 
-  findAll(): Promise<Book[]> {
+  findAll(search?: string): Promise<Book[]> {
     return this.prisma.book.findMany({
+      where: this.buildSearchFilter(search),
       orderBy: { id: 'desc' },
       include: {
         bookshelf: {

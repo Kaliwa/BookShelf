@@ -43,17 +43,18 @@ export class BooksController {
   findMyBooks(
     @Req() req: AuthenticatedRequest,
     @Query('bookshelfId') bookshelfId?: string,
+    @Query('search') search?: string,
   ) {
     const parsedBookshelfId = bookshelfId ? Number(bookshelfId) : undefined;
-    return this.booksService.findMyBooks(req.user, parsedBookshelfId);
+    return this.booksService.findMyBooks(req.user, parsedBookshelfId, search);
   }
 
   @ApiOperation({ summary: 'Get all users bookshelves (admin only)' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   @Get('all')
-  findAll() {
-    return this.booksService.findAll();
+  findAll(@Query('search') search?: string) {
+    return this.booksService.findAll(search);
   }
 
   @ApiOperation({ summary: 'Update a book (owner or admin)' })

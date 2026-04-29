@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -32,16 +33,19 @@ export class BookshelfController {
 
   @Get()
   @ApiOperation({ summary: 'Get all my bookshelves with books' })
-  getMyBookshelves(@Req() req: AuthenticatedRequest) {
-    return this.bookshelfService.getMyBookshelves(req.user);
+  getMyBookshelves(
+    @Req() req: AuthenticatedRequest,
+    @Query('search') search?: string,
+  ) {
+    return this.bookshelfService.getMyBookshelves(req.user, search);
   }
 
   @Get('all')
   @ApiOperation({ summary: 'Get all bookshelves (admin only)' })
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  findAll() {
-    return this.bookshelfService.findAll();
+  findAll(@Query('search') search?: string) {
+    return this.bookshelfService.findAll(search);
   }
 
   @Get(':id')
